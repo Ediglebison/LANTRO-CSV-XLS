@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Conversor de CSV para XLS</title>
+    
+    <!-- Incluindo Tailwind CSS para um design moderno e responsivo -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Incluindo a biblioteca SheetJS (xlsx.full.min.js) para manipulação de planilhas -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        /* Usando a fonte Inter para uma melhor aparência do texto */
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-200 flex items-center justify-center min-h-screen transition-colors duration-300">
+
+    <div class="w-full max-w-lg mx-auto p-6 sm:p-8 bg-white dark:bg-gray-800 rounded-2xl shadow-lg text-center">
+        
+        <!-- Ícone da aplicação -->
+        <div class="flex justify-center items-center mb-6">
+            <svg class="w-16 h-16 text-emerald-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M7.5 7.5h-.75A2.25 2.25 0 004.5 9.75v7.5a2.25 2.25 0 002.25 2.25h7.5a2.25 2.25 0 002.25-2.25v-7.5a2.25 2.25 0 00-2.25-2.25h-.75m-6 3.75l3 3m0 0l3-3m-3 3V1.5m6 9h.75a2.25 2.25 0 012.25 2.25v7.5a2.25 2.25 0 01-2.25 2.25h-7.5a2.25 2.25 0 01-2.25-2.25v-.75" />
+            </svg>
+        </div>
+
+        <!-- Título e descrição -->
+        <h1 class="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-2">Conversor de CSV para XLS</h1>
+        <p class="text-gray-600 dark:text-gray-400 mb-8">Selecione um arquivo .csv para convertê-lo para o formato .xls do Excel.</p>
+
+        <!-- Área de seleção de arquivo -->
+        <div class="mb-6">
+            <label for="csvFileInput" class="cursor-pointer inline-block w-full px-4 py-6 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg hover:border-emerald-500 dark:hover:border-emerald-400 transition-colors duration-300">
+                <span id="file-chosen" class="text-gray-500 dark:text-gray-400">Clique aqui para selecionar um arquivo...</span>
+                <input type="file" id="csvFileInput" class="hidden" accept=".csv">
+            </label>
+        </div>
+
+        <!-- Botão de conversão -->
+        <button id="convertBtn" class="w-full bg-emerald-500 text-white font-bold py-3 px-4 rounded-lg hover:bg-emerald-600 focus:outline-none focus:ring-4 focus:ring-emerald-300 dark:focus:ring-emerald-700 transition-all duration-300 disabled:bg-gray-400 disabled:cursor-not-allowed">
+            Converter e Baixar
+        </button>
+
+        <!-- Área de status/feedback -->
+        <p id="status" class="mt-4 text-sm text-gray-500 dark:text-gray-400 h-5"></p>
+        
+    </div>
+
+    <script>
+        // --- Referências aos elementos do DOM ---
+        const csvFileInput = document.getElementById('csvFileInput');
+        const convertBtn = document.getElementById('convertBtn');
+        const fileChosenText = document.getElementById('file-chosen');
+        const statusText = document.getElementById('status');
+
+        let selectedFile = null;
+
+        // --- Lógica de manipulação de arquivo ---
+
+        // Atualiza a interface quando um arquivo é selecionado
+        csvFileInput.addEventListener('change', (event) => {
+            selectedFile = event.target.files[0];
+            if (selectedFile) {
+                fileChosenText.textContent = `Arquivo selecionado: ${selectedFile.name}`;
+                fileChosenText.classList.remove('text-gray-500', 'dark:text-gray-400');
+                fileChosenText.classList.add('text-emerald-600', 'dark:text-emerald-400', 'font-semibold');
+                statusText.textContent = '';
+            } else {
+                fileChosenText.textContent = 'Clique aqui para selecionar um arquivo...';
+                fileChosenText.classList.add('text-gray-500', 'dark:text-gray-400');
+                fileChosenText.classList.remove('text-emerald-600', 'dark:text-emerald-400', 'font-semibold');
+            }
+        });
+
+        // Adiciona o evento de clique ao botão de conversão
+        convertBtn.addEventListener('click', () => {
+            if (!selectedFile) {
+                statusText.textContent = 'Por favor, selecione um arquivo CSV primeiro.';
+                statusText.classList.add('text-red-500');
+                return;
+            }
+
+            // Desabilita o botão para evitar cliques múltiplos
+            convertBtn.disabled = true;
+            statusText.textContent = 'Convertendo, por favor aguarde...';
+            statusText.classList.remove('text-red-500');
+
+            // Usa a API FileReader para ler o conteúdo do arquivo
+            const reader = new FileReader();
+            
+            reader.onload = function(e) {
+                try {
+                    const csvData = e.target.result;
+
+                    // SheetJS lê o CSV. 'raw: true' preserva os valores como strings
+                    const workbook = XLSX.read(csvData, { type: 'string', raw: true });
+
+                    // Pega o nome da primeira planilha
+                    const sheetName = workbook.SheetNames[0];
+                    const worksheet = workbook.Sheets[sheetName];
+
+                    // Cria um novo workbook para salvar como XLS
+                    const newWorkbook = XLSX.utils.book_new();
+                    XLSX.utils.book_append_sheet(newWorkbook, worksheet, sheetName);
+                    
+                    // Gera o nome do novo arquivo
+                    const newFileName = selectedFile.name.replace(/\.csv$/i, '') + '.xls';
+
+                    // Escreve o arquivo XLS e dispara o download
+                    // O formato 'xls' (BIFF8) é mais antigo, mas compatível com muitas versões do Excel.
+                    // Para .xlsx, use 'bookType: "xlsx"'
+                    XLSX.writeFile(newWorkbook, newFileName, { bookType: 'xls' });
+
+                    statusText.textContent = 'Conversão concluída! O download começou.';
+                } catch (error) {
+                    console.error("Erro na conversão:", error);
+                    statusText.textContent = 'Erro ao processar o arquivo. Verifique o formato.';
+                    statusText.classList.add('text-red-500');
+                } finally {
+                    // Reabilita o botão após a conclusão
+                    convertBtn.disabled = false;
+                }
+            };
+
+            reader.onerror = function() {
+                statusText.textContent = 'Não foi possível ler o arquivo selecionado.';
+                statusText.classList.add('text-red-500');
+                convertBtn.disabled = false;
+            };
+
+            // Inicia a leitura do arquivo como texto
+            reader.readAsText(selectedFile);
+        });
+    </script>
+</body>
+</html>
